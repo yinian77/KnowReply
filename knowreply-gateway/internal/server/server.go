@@ -115,6 +115,9 @@ func buildRouter(cfg *config.Config, h *handler.Handler) http.Handler {
 
 	r := gin.New()
 	r.Use(gin.Recovery(), requestLogger())
+	if cfg.Env != "prod" {
+		r.Use(corsMiddleware())
+	}
 
 	r.GET("/healthz", h.Health)
 	r.GET("/readyz", h.Ready)

@@ -74,7 +74,7 @@ func main() {
 		handleSearch(r, w, searcher, logger)
 	})
 
-	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{Addr: addr, Handler: withCORS(mux), ReadHeaderTimeout: 10 * time.Second}
 
 	go func() {
 		logger.Info("kb api listening", "addr", addr, "embedder", embedder.Describe())
@@ -140,6 +140,20 @@ func handleSearch(r *http.Request, w http.ResponseWriter, searcher *retrieval.Se
 		"embedder":   resp.Embedder,
 		"tookMs":     time.Since(start).Milliseconds(),
 		"hits":       resp.Hits,
+	})
+}
+
+// withCORS 允许本地管理页面跨端口调用检索预览接口。
+func withCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
 	})
 }
 
