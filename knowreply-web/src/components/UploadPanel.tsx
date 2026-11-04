@@ -2,22 +2,22 @@ import { useState } from 'react';
 import { App, Button, Card, Input, Space, Typography, Upload } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import type { UploadFile, UploadProps } from 'antd';
-import { uploadDocument } from '../api';
-import type { Settings } from '../types';
+import { ACCEPTED_EXTENSIONS, MAX_UPLOAD_MB } from '../config';
+import { useAuth } from '../context/AuthContext';
+import { toErrorMessage } from '../services/http';
+import { uploadDocument } from '../services/knowledgeApi';
 
 const { Dragger } = Upload;
 const { Text } = Typography;
 
-const ACCEPT = '.md,.markdown,.txt,.docx,.pdf';
-
 interface Props {
-  settings: Settings;
-  token: string;
   onUploaded: () => void;
 }
 
-export default function UploadPanel({ settings, token, onUploaded }: Props) {
+export default function UploadPanel({ onUploaded }: Props) {
+  const { settings, token } = useAuth();
   const { message } = App.useApp();
+
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [title, setTitle] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -26,9 +26,9 @@ export default function UploadPanel({ settings, token, onUploaded }: Props) {
     name: 'file',
     multiple: false,
     maxCount: 1,
-    accept: ACCEPT,
+    accept: ACCEPTED_EXTENSIONS,
     fileList,
-    // 关闭自动上传，交由按钮统一提交，便于同时带上标题
+    // 关闭自动上传，改由按钮统一提交，才能同时带上标题
     beforeUpload: () => false,
     onChange: ({ fileList: next }) => setFileList(next.slice(-1)),
     onRemove: () => setFileList([]),
@@ -47,26 +47,28 @@ export default function UploadPanel({ settings, token, onUploaded }: Props) {
 
     setUploading(true);
     try {
-      const res = await uploadDocument(settings, token, file as File, title.trim() || undefined);
+      const res = await uploadDocument(settings, token, file, title.trim() || undefined);
       message.success(`已入队：docId=${res.docId}，任务 ${res.taskId}`);
       setFileList([]);
       setTitle('');
       onUploaded();
     } catch (err) {
-      message.error(`上传失败：${(err as Error).message}`);
+      message.error(`上传失败：${toErrorMessage(err)}`);
     } finally {
       setUploading(false);
     }
   };
 
   return (
-    <Card title="上传文档" variant="outlined">
+    <Card title="上传文档">
       <Dragger {...draggerProps} style={{ marginBottom: 16 }}>
         <p className="ant-upload-drag-icon">
           <InboxOutlined />
         </p>
         <p className="ant-upload-text">点击或拖拽文件到此区域</p>
-        <p className="ant-upload-hint">支持 MD / TXT / DOCX / PDF，单文件 ≤ 50MB</p>
+        <p className="ant-upload-hint">
+          支持 MD / TXT / DOCX / PDF，单文件 ≤ {MAX_UPLOAD_MB}MB
+        </p>
       </Dragger>
 
       <Space.Compact style={{ width: '100%', marginBottom: 12 }}>

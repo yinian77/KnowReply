@@ -1,14 +1,14 @@
 import { App, Button, Card, Popconfirm, Select, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { offlineDocument } from '../api';
-import type { DocItem, Settings } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { toErrorMessage } from '../services/http';
+import { offlineDocument } from '../services/knowledgeApi';
 import { STATUS_COLOR, STATUS_TEXT } from '../types';
+import type { DocItem } from '../types';
 
 const { Text } = Typography;
 
 interface Props {
-  settings: Settings;
-  token: string;
   docs: DocItem[];
   loading: boolean;
   statusFilter: string;
@@ -26,9 +26,7 @@ const STATUS_OPTIONS = [
   { value: 'offline', label: 'offline' },
 ];
 
-export default function DocTable({
-  settings,
-  token,
+export default function DocumentTable({
   docs,
   loading,
   statusFilter,
@@ -36,6 +34,7 @@ export default function DocTable({
   onRefresh,
   onChanged,
 }: Props) {
+  const { settings, token } = useAuth();
   const { message } = App.useApp();
 
   const handleOffline = async (docId: number) => {
@@ -44,7 +43,7 @@ export default function DocTable({
       message.success(`文档 ${docId} 已下线，切片正在清理`);
       onChanged();
     } catch (err) {
-      message.error(`下线失败：${(err as Error).message}`);
+      message.error(`下线失败：${toErrorMessage(err)}`);
     }
   };
 
@@ -92,7 +91,12 @@ export default function DocTable({
           onConfirm={() => handleOffline(row.id)}
           disabled={row.status === 'offline'}
         >
-          <Button type="link" size="small" disabled={row.status === 'offline'} style={{ padding: 0 }}>
+          <Button
+            type="link"
+            size="small"
+            disabled={row.status === 'offline'}
+            style={{ padding: 0 }}
+          >
             下线
           </Button>
         </Popconfirm>

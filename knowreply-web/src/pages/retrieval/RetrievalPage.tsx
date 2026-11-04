@@ -1,13 +1,22 @@
 import { useState } from 'react';
-import { App, Button, Card, Empty, Input, InputNumber, Space, Spin, Tag, Typography } from 'antd';
-import { searchChunks } from '../api';
-import type { Hit, SearchResponse, Settings } from '../types';
+import {
+  App,
+  Button,
+  Card,
+  Empty,
+  Input,
+  InputNumber,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+} from 'antd';
+import { useAuth } from '../../context/AuthContext';
+import { toErrorMessage } from '../../services/http';
+import { searchChunks } from '../../services/retrievalApi';
+import type { Hit, SearchResponse } from '../../types';
 
 const { Text, Paragraph } = Typography;
-
-interface Props {
-  settings: Settings;
-}
 
 function ranks(hit: Hit): string[] {
   const out: string[] = [];
@@ -17,8 +26,10 @@ function ranks(hit: Hit): string[] {
   return out;
 }
 
-export default function SearchPanel({ settings }: Props) {
+export default function RetrievalPage() {
+  const { settings } = useAuth();
   const { message } = App.useApp();
+
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(5);
   const [loading, setLoading] = useState(false);
@@ -35,7 +46,7 @@ export default function SearchPanel({ settings }: Props) {
     try {
       setResult(await searchChunks(settings, q, limit));
     } catch (err) {
-      message.error(`检索失败：${(err as Error).message}`);
+      message.error(`检索失败：${toErrorMessage(err)}`);
       setResult(null);
     } finally {
       setLoading(false);
@@ -57,7 +68,7 @@ export default function SearchPanel({ settings }: Props) {
           max={20}
           value={limit}
           onChange={(v) => setLimit(Number(v) || 5)}
-          style={{ width: 88 }}
+          style={{ width: 108 }}
           addonBefore="条数"
         />
         <Button type="primary" loading={loading} onClick={handleSearch}>

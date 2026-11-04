@@ -61,13 +61,6 @@ export interface Settings {
   userId: string;
 }
 
-export const DEFAULT_SETTINGS: Settings = {
-  apiBase: 'http://127.0.0.1:8080',
-  kbBase: 'http://127.0.0.1:8081',
-  tenantId: 1,
-  userId: 'admin',
-};
-
 export const STATUS_TEXT: Record<DocStatus, string> = {
   pending: '待处理',
   processing: '处理中',
