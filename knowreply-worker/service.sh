@@ -6,12 +6,12 @@
 #   worker —— asynq 消费者，文档入库/下线流水线
 #   kbapi  —— 检索预览 HTTP 服务（内部工具，默认只监听 127.0.0.1:8081）
 #
-#   ./scripts/service.sh start [worker|kbapi|all]   默认 all
-#   ./scripts/service.sh stop  [worker|kbapi|all]   默认 all
-#   ./scripts/service.sh restart [worker|kbapi|all]
-#   ./scripts/service.sh status
-#   ./scripts/service.sh logs <worker|kbapi>
-#   ./scripts/service.sh build [worker|kbapi|all]
+#   ./service.sh start [worker|kbapi|all]   默认 all
+#   ./service.sh stop  [worker|kbapi|all]   默认 all
+#   ./service.sh restart [worker|kbapi|all]
+#   ./service.sh status
+#   ./service.sh logs <worker|kbapi>
+#   ./service.sh build [worker|kbapi|all]
 #
 # 产物：bin/<name> ｜ 日志：logs/<name>.log ｜ PID：run/<name>.pid
 # 配置：优先读取仓库根目录的 .env（已被 .gitignore 忽略），其次使用下面的默认值。
@@ -19,7 +19,7 @@
 
 set -euo pipefail
 
-SERVICE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SERVICE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SERVICE_DIR/.." && pwd)"
 
 ALL_TARGETS=(worker kbapi)
@@ -231,7 +231,7 @@ do_logs() {
 }
 
 usage() {
-  sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//' | grep -v '^=\{10,\}$'
 }
 
 ACTION="${1:-}"

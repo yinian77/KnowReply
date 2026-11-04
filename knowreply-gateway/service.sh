@@ -2,12 +2,12 @@
 # =============================================================================
 # knowreply-gateway 启停脚本（本服务自带，不依赖仓库根目录的任何脚本）
 #
-#   ./scripts/service.sh start     # 编译（缺二进制时）+ 后台启动
-#   ./scripts/service.sh stop      # 优雅停止（TERM，15s 后 KILL）
-#   ./scripts/service.sh restart
-#   ./scripts/service.sh status    # 进程 + /readyz 健康检查
-#   ./scripts/service.sh logs      # 跟随日志
-#   ./scripts/service.sh build     # 仅编译
+#   ./service.sh start     # 编译（缺二进制时）+ 后台启动
+#   ./service.sh stop      # 优雅停止（TERM，15s 后 KILL）
+#   ./service.sh restart
+#   ./service.sh status    # 进程 + /readyz 健康检查
+#   ./service.sh logs      # 跟随日志
+#   ./service.sh build     # 仅编译
 #
 # 产物：bin/gateway ｜ 日志：logs/gateway.log ｜ PID：run/gateway.pid
 # 配置：优先读取仓库根目录的 .env（已被 .gitignore 忽略），其次使用下面的默认值。
@@ -15,7 +15,7 @@
 
 set -euo pipefail
 
-SERVICE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SERVICE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SERVICE_DIR/.." && pwd)"
 
 BIN="$SERVICE_DIR/bin/gateway"
@@ -144,7 +144,7 @@ do_logs() {
 }
 
 usage() {
-  sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//' | grep -v '^=\{10,\}$'
 }
 
 case "${1:-}" in
