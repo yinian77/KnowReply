@@ -1,0 +1,85 @@
+# ============================================================================
+# KnowReply 本地/单机部署编排
+#
+# 数据层三件套的归属：
+#   PostgreSQL(pgvector) —— 本文件自建，仅 KnowReply 使用（知识切片、向量检索）
+#   MySQL 8.0            —— 复用 lhplat 现有实例 lhplat-mysql（业务结构化数据）
+#   Redis 7              —— 复用 lhplat 现有实例 lhplat-redis（会话状态/限流/asynq 队列）
+#
+# 复用实例的实际参数（docker inspect 实测，勿凭记忆改）：
+#   MySQL  容器 lhplat-mysql : mysql:8.0.46，网络别名 mysql / lhplat-mysql
+#          宿主机 127.0.0.1:13406 -> 容器 3306，utf8mb4 / utf8mb4_0900_ai_ci
+#          已有库：lhplat_global / lhplat_ap / lhplat_eu / commission_db
+#          KnowReply 独占库：knowreply（专库专用，不与 lhplat_* 混库）
+#   Redis  容器 lhplat-redis : redis:7-alpine(7.4.11)，网络别名 lhplat-redis
+#          宿主机 127.0.0.1:16479 -> 容器 6379，requirepass=localdev_only_change_me
+#          databases=16，appendonly=no，maxmemory=0(noeviction)
+#
+# 容器间互访：KnowReply 的服务容器必须加入 external 网络 lhplat-local，
+# 才能用服务名 mysql / lhplat-redis 直连，无需走宿主机端口。
+# 宿主机进程（本地 go run / npm run dev）则用 127.0.0.1 的映射端口。
+# ============================================================================
+
+# 供 gateway / agent / worker 复用的一揽子连接参数，新服务直接 <<: *knowreply-env
+x-knowreply-env: &knowreply-env
+  TZ: Asia/Shanghai
+  # --- MySQL（结构化业务数据：租户/会话/消息/工单/文档元数据）---
+  MYSQL_HOST: lhplat-mysql
+  MYSQL_PORT: "3306"
+  MYSQL_USER: knowreply
+  MYSQL_PASSWORD: knowreply_2026_mysql
+  MYSQL_DATABASE: knowreply
+  # --- Redis（会话状态 / 限流 / asynq 队列），按 DB 编号分域 ---
+  REDIS_ADDR: "lhplat-redis:6379"
+  REDIS_PASSWORD: localdev_only_change_me
+  REDIS_DB_CACHE: "1"   # db1 会话状态、限流计数、幂等键
+  REDIS_DB_QUEUE: "2"   # db2 asynq 任务队列，与缓存隔离，避免 FLUSHDB 误伤
+  # --- PostgreSQL + pgvector（知识切片）---
+  PG_DSN: "postgres://knowreply:knowreply_2026_pg@postgres:5432/knowreply?sslmode=disable"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: knowreply-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: knowreply
+      POSTGRES_PASSWORD: knowreply_2026_pg
+      POSTGRES_DB: knowreply
+      TZ: Asia/Shanghai
+    ports:
+      - "15432:5432"          # 宿主机 15432，沿用 lhplat 的偏移式端口习惯
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro   # 仅在数据卷为空时执行一次
+    command:
+      - postgres
+      - -c
+      - shared_buffers=256MB          # 约容器内存 1G 的 25%
+      - -c
+      - effective_cache_size=768MB
+      - -c
+      - maintenance_work_mem=128MB    # 建 HNSW 索引时够用
+      - -c
+      - max_connections=100
+      - -c
+      - timezone=Asia/Shanghai
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U knowreply -d knowreply"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 1g
+    networks:
+      - default
+      - lhplat-local
+
+networks:
+  default:
+  # 复用 lhplat 的桥接网络：mysql / lhplat-redis 在此网络内可直接解析
+  lhplat-local:
+    external: true
+
+volumes:
+  pgdata:
+    name: knowreply-pgdata
