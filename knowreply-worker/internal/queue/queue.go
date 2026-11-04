@@ -11,6 +11,8 @@ import (
 const (
 	// TypeDocIngest 文档入库任务：解析 → 切分 → embedding → 写 pgvector。
 	TypeDocIngest = "doc:ingest"
+	// TypeDocDelete 文档下线任务：删除 pgvector 中该文档的切片。
+	TypeDocDelete = "doc:delete"
 )
 
 // IngestPayload 任务载荷。TaskID 用 docId 保证同文档重复投递幂等。
@@ -18,6 +20,9 @@ type IngestPayload struct {
 	TenantID uint64 `json:"tenantId"`
 	DocID    uint64 `json:"docId"`
 }
+
+// DocPayload 入库与下线共用的载荷形状。
+type DocPayload = IngestPayload
 
 func NewIngestTask(p IngestPayload) (*asynq.Task, error) {
 	body, err := json.Marshal(p)

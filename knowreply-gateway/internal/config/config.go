@@ -13,10 +13,12 @@ type Config struct {
 	Env      string
 	HTTPAddr string
 
-	MySQL MySQL
-	Redis Redis
-	Auth  Auth
-	Agent Agent
+	MySQL   MySQL
+	Redis   Redis
+	Auth    Auth
+	Agent   Agent
+	Storage Storage
+	Queue   Queue
 
 	ReadHeaderTimeout time.Duration
 	WriteTimeout      time.Duration
@@ -48,6 +50,17 @@ type Agent struct {
 	Addr string
 }
 
+// Storage 上传文件的落盘位置，必须与 worker 的 DOC_STORAGE_ROOT 指向同一目录。
+type Storage struct {
+	RootDir        string
+	MaxUploadBytes int64
+}
+
+// Queue 文档入库任务队列，与 worker 的 WORKER_QUEUE / REDIS_DB_QUEUE 保持一致。
+type Queue struct {
+	Name string
+}
+
 func Load() (*Config, error) {
 	cfg := &Config{
 		Env:      getEnv("APP_ENV", "dev"),
@@ -71,6 +84,13 @@ func Load() (*Config, error) {
 		Agent: Agent{
 			Addr: getEnv("AGENT_GRPC_ADDR", "127.0.0.1:50051"),
 		},
+		Storage: Storage{
+			RootDir:        getEnv("DOC_STORAGE_ROOT", "/opt/KnowReply/data/docs"),
+			MaxUploadBytes: int64(getEnvInt("MAX_UPLOAD_BYTES", 50<<20)),
+		},
+		Queue: Queue{
+			Name: getEnv("DOC_QUEUE", "ingest"),
+		},
 		ReadHeaderTimeout: getEnvDuration("HTTP_READ_HEADER_TIMEOUT", 10*time.Second),
 		WriteTimeout:      getEnvDuration("HTTP_WRITE_TIMEOUT", 0),
 		ShutdownTimeout:   getEnvDuration("HTTP_SHUTDOWN_TIMEOUT", 15*time.Second),
@@ -82,6 +102,15 @@ func Load() (*Config, error) {
 	}
 	if cfg.MySQL.DSN == "" {
 		return nil, fmt.Errorf("MYSQL_DSN must not be empty")
+	}
+	if cfg.Storage.RootDir == "" {
+		return nil, fmt.Errorf("DOC_STORAGE_ROOT must not be empty")
+	}
+	if cfg.Storage.MaxUploadBytes <= 0 {
+		return nil, fmt.Errorf("MAX_UPLOAD_BYTES must be positive")
+	}
+	if cfg.Queue.Name == "" {
+		return nil, fmt.Errorf("DOC_QUEUE must not be empty")
 	}
 	return cfg, nil
 }

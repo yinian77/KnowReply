@@ -101,6 +101,7 @@ func run(cfg *config.Config, logger *slog.Logger) error {
 
 	mux := asynq.NewServeMux()
 	mux.Handle(queue.TypeDocIngest, ingester)
+	mux.Handle(queue.TypeDocDelete, task.NewDeleter(pgStore, logger))
 
 	if err := srv.Start(mux); err != nil {
 		return err

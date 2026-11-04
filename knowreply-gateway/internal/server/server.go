@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,6 +17,7 @@ import (
 	"github.com/yinian77/KnowReply/knowreply-gateway/internal/auth"
 	"github.com/yinian77/KnowReply/knowreply-gateway/internal/config"
 	"github.com/yinian77/KnowReply/knowreply-gateway/internal/handler"
+	"github.com/yinian77/KnowReply/knowreply-gateway/internal/queue"
 	"github.com/yinian77/KnowReply/knowreply-gateway/internal/store"
 	"github.com/yinian77/KnowReply/knowreply-gateway/internal/ws"
 )
@@ -27,6 +29,7 @@ type Server struct {
 
 	mysql   *sql.DB
 	redis   *redis.Client
+	queue   *queue.Client
 	hub     *ws.Hub
 	http    *http.Server
 	baseCtx context.Context
@@ -60,9 +63,16 @@ func New(cfg *config.Config, log *slog.Logger) (*Server, error) {
 		return nil, fmt.Errorf("ping redis: %w", err)
 	}
 
+	if err := os.MkdirAll(cfg.Storage.RootDir, 0o755); err != nil {
+		_ = db.Close()
+		_ = rdb.Close()
+		return nil, fmt.Errorf("create storage root %s: %w", cfg.Storage.RootDir, err)
+	}
+
 	baseCtx, cancel := context.WithCancel(context.Background())
 	st := store.New(db)
 	hub := ws.NewHub(log, nil)
+	queueCli := queue.NewClient(cfg.Redis.Addr, cfg.Redis.Password, cfg.Redis.QueueDB, cfg.Queue.Name)
 
 	h := handler.New(handler.Deps{
 		Store:       st,
@@ -70,6 +80,8 @@ func New(cfg *config.Config, log *slog.Logger) (*Server, error) {
 		Hub:         hub,
 		Log:         log,
 		WSReadLimit: cfg.WSReadLimit,
+		Storage:     cfg.Storage,
+		Queue:       queueCli,
 		BaseCtx:     baseCtx,
 		Ready: func(ctx context.Context) error {
 			if err := db.PingContext(ctx); err != nil {
@@ -88,6 +100,7 @@ func New(cfg *config.Config, log *slog.Logger) (*Server, error) {
 		log:     log,
 		mysql:   db,
 		redis:   rdb,
+		queue:   queueCli,
 		hub:     hub,
 		http:    &http.Server{Addr: cfg.HTTPAddr, Handler: buildRouter(cfg, h), ReadHeaderTimeout: cfg.ReadHeaderTimeout, WriteTimeout: cfg.WriteTimeout},
 		baseCtx: baseCtx,
@@ -112,6 +125,8 @@ func buildRouter(cfg *config.Config, h *handler.Handler) http.Handler {
 	authed := v1.Group("", h.RequireAuth())
 	authed.POST("/chat/sessions", h.CreateSession)
 	authed.GET("/kb/documents", h.ListDocuments)
+	authed.POST("/kb/documents", h.UploadDocument)
+	authed.DELETE("/kb/documents/:id", h.DeleteDocument)
 
 	r.GET("/ws/chat", h.RequireAuth(), h.ChatWS)
 
@@ -136,6 +151,9 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 	s.cancel()
 
+	if err := s.queue.Close(); err != nil {
+		errs = append(errs, fmt.Errorf("close queue client: %w", err))
+	}
 	if err := s.redis.Close(); err != nil {
 		errs = append(errs, fmt.Errorf("close redis: %w", err))
 	}

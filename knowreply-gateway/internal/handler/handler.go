@@ -11,6 +11,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/yinian77/KnowReply/knowreply-gateway/internal/auth"
+	"github.com/yinian77/KnowReply/knowreply-gateway/internal/config"
+	"github.com/yinian77/KnowReply/knowreply-gateway/internal/queue"
 	"github.com/yinian77/KnowReply/knowreply-gateway/internal/store"
 	"github.com/yinian77/KnowReply/knowreply-gateway/internal/ws"
 )
@@ -24,6 +26,10 @@ type Deps struct {
 	Hub         *ws.Hub
 	Log         *slog.Logger
 	WSReadLimit int64
+	// Storage 上传文件的落盘配置，与 worker 的 DOC_STORAGE_ROOT 必须一致。
+	Storage config.Storage
+	// Queue 文档处理任务投递端。
+	Queue *queue.Client
 	// BaseCtx 随进程生命周期取消，用于脱离 HTTP 请求上下文的 WS 后台读写。
 	BaseCtx context.Context
 	// Ready 就绪检查：MySQL + Redis 连通性，由 server 注入。

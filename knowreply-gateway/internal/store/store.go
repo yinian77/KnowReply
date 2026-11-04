@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -98,6 +99,56 @@ func (s *Store) TouchSession(ctx context.Context, sessionID string) error {
 	const q = `UPDATE sessions SET updated_at = CURRENT_TIMESTAMP(3) WHERE id = ?`
 	if _, err := s.db.ExecContext(ctx, q, sessionID); err != nil {
 		return fmt.Errorf("touch session: %w", err)
+	}
+	return nil
+}
+
+// ErrDocumentNotFound 文档不存在或不属于该租户。
+var ErrDocumentNotFound = errors.New("document not found")
+
+// DocumentMeta 上传/下线场景需要的文档最小信息。
+type DocumentMeta struct {
+	ID       uint64
+	TenantID uint64
+	Title    string
+	Status   string
+}
+
+// CreateDocument 落一条待处理文档，返回自增 docId。
+func (s *Store) CreateDocument(ctx context.Context, tenantID uint64, title, sourceURL, version string) (uint64, error) {
+	const q = `INSERT INTO documents (tenant_id, title, source_url, status, version)
+		VALUES (?, ?, ?, 'pending', ?)`
+
+	res, err := s.db.ExecContext(ctx, q, tenantID, title, sourceURL, version)
+	if err != nil {
+		return 0, fmt.Errorf("insert document: %w", err)
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("get document id: %w", err)
+	}
+	return uint64(id), nil
+}
+
+func (s *Store) GetDocument(ctx context.Context, tenantID, docID uint64) (*DocumentMeta, error) {
+	const q = `SELECT id, tenant_id, title, status FROM documents WHERE id = ? AND tenant_id = ?`
+
+	var d DocumentMeta
+	err := s.db.QueryRowContext(ctx, q, docID, tenantID).Scan(&d.ID, &d.TenantID, &d.Title, &d.Status)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrDocumentNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query document: %w", err)
+	}
+	return &d, nil
+}
+
+func (s *Store) SetDocumentStatus(ctx context.Context, tenantID, docID uint64, status string) error {
+	const q = `UPDATE documents SET status = ?, updated_at = CURRENT_TIMESTAMP(3)
+		WHERE id = ? AND tenant_id = ?`
+	if _, err := s.db.ExecContext(ctx, q, status, docID, tenantID); err != nil {
+		return fmt.Errorf("update document status: %w", err)
 	}
 	return nil
 }
