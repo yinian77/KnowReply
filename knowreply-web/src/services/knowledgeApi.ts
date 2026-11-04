@@ -1,5 +1,5 @@
 import { DOC_PAGE_SIZE } from '../config';
-import type { DocListResponse, Settings, TokenResponse, UploadResponse } from '../types';
+import type { DocListResponse, DocStats, Settings, TokenResponse, UploadResponse } from '../types';
 import { bearer, requestJson, withBase } from './http';
 
 /** 签发访问令牌（联调用简洁登录，正式环境替换为账号体系） */
@@ -23,6 +23,12 @@ export function listDocuments(
     withBase(settings.apiBase, `/api/v1/kb/documents?${query.toString()}`),
     { headers: bearer(token) },
   );
+}
+
+export function getDocumentStats(settings: Settings, token: string): Promise<DocStats> {
+  return requestJson<DocStats>(withBase(settings.apiBase, '/api/v1/kb/documents/stats'), {
+    headers: bearer(token),
+  });
 }
 
 export function uploadDocument(

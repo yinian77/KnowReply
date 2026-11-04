@@ -5,10 +5,29 @@ export interface DocItem {
   tenantId: number;
   title: string;
   sourceUrl: string | null;
+  /** 源文件字节数 */
+  sourceSize: number;
   status: DocStatus;
+  /** 写入 pgvector 的切片数 */
+  chunkCount: number;
+  /** 最近一次失败原因，成功时为空 */
+  errorMsg: string | null;
   version: string;
   effectiveAt: string | null;
   createdAt: string | null;
+  updatedAt: string | null;
+}
+
+/** 知识库汇总，管理台顶部概览用 */
+export interface DocStats {
+  total: number;
+  pending: number;
+  processing: number;
+  ready: number;
+  failed: number;
+  offline: number;
+  chunks: number;
+  bytes: number;
 }
 
 export interface DocListResponse {

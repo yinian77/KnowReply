@@ -67,6 +67,26 @@ func (h *Handler) ListDocuments(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"items": docs, "limit": limit, "offset": offset})
 }
 
+// DocumentStats 知识库汇总：文档数、各状态分布、切片总数、存储占用。
+func (h *Handler) DocumentStats(c *gin.Context) {
+	claims := claimsFrom(c)
+	if claims == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing claims"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+	defer cancel()
+
+	stats, err := h.deps.Store.DocumentStats(ctx, claims.TenantID)
+	if err != nil {
+		h.deps.Log.Error("document stats failed", "err", err, "tenantId", claims.TenantID)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "query stats failed"})
+		return
+	}
+	c.JSON(http.StatusOK, stats)
+}
+
 // UploadDocument 接收 multipart 上传：落盘 → 建 documents 记录 → 投递入库任务。
 // 返回 202，真正的解析与向量化在 worker 异步完成。
 func (h *Handler) UploadDocument(c *gin.Context) {
@@ -118,7 +138,7 @@ func (h *Handler) UploadDocument(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
-	docID, err := h.deps.Store.CreateDocument(ctx, claims.TenantID, title, "file://"+absPath, "v1")
+	docID, err := h.deps.Store.CreateDocument(ctx, claims.TenantID, title, "file://"+absPath, "v1", fh.Size)
 	if err != nil {
 		_ = os.Remove(absPath)
 		h.deps.Log.Error("create document failed", "err", err, "tenantId", claims.TenantID)

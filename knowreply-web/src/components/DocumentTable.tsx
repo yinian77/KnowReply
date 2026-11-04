@@ -1,10 +1,11 @@
-import { App, Button, Card, Popconfirm, Select, Space, Table, Tag, Typography } from 'antd';
+import { App, Button, Card, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useAuth } from '../context/AuthContext';
 import { toErrorMessage } from '../services/http';
 import { offlineDocument } from '../services/knowledgeApi';
 import { STATUS_COLOR, STATUS_TEXT } from '../types';
 import type { DocItem } from '../types';
+import { formatBytes, formatRelative } from '../utils/format';
 
 const { Text } = Typography;
 
@@ -25,6 +26,13 @@ const STATUS_OPTIONS = [
   { value: 'failed', label: 'failed' },
   { value: 'offline', label: 'offline' },
 ];
+
+/** 从 source_url 里取文件后缀，作为“文档类型” */
+function fileType(url: string | null): string {
+  if (!url) return '—';
+  const match = /\.([a-z0-9]+)(?:\?|#|$)/i.exec(url);
+  return match ? match[1].toUpperCase() : '—';
+}
 
 export default function DocumentTable({
   docs,
@@ -48,40 +56,82 @@ export default function DocumentTable({
   };
 
   const columns: ColumnsType<DocItem> = [
-    { title: 'ID', dataIndex: 'id', width: 64 },
+    { title: 'ID', dataIndex: 'id', width: 60 },
     {
-      title: '标题',
+      title: '文档',
       dataIndex: 'title',
       ellipsis: true,
       render: (title: string, row) => (
-        <Text title={row.sourceUrl ?? undefined} style={{ fontSize: 13.5 }}>
-          {title}
-        </Text>
+        <Space direction="vertical" size={0}>
+          <Text style={{ fontSize: 13.5 }}>{title}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {fileType(row.sourceUrl)} · v{row.version}
+            {row.effectiveAt ? ` · 生效 ${row.effectiveAt}` : ''}
+          </Text>
+        </Space>
       ),
     },
     {
       title: '状态',
       dataIndex: 'status',
-      width: 110,
-      render: (status: DocItem['status']) => (
-        <Tag color={STATUS_COLOR[status]} style={{ marginInlineEnd: 0 }}>
-          {STATUS_TEXT[status] ?? status}
-        </Tag>
-      ),
+      width: 104,
+      render: (status: DocItem['status'], row) => {
+        const tag = (
+          <Tag color={STATUS_COLOR[status]} style={{ marginInlineEnd: 0 }}>
+            {STATUS_TEXT[status] ?? status}
+          </Tag>
+        );
+        // 失败时把原因挂在悬浮提示上，运营不用点进详情
+        return row.errorMsg ? (
+          <Tooltip title={row.errorMsg} overlayStyle={{ maxWidth: 360 }}>
+            {tag}
+          </Tooltip>
+        ) : (
+          tag
+        );
+      },
     },
     {
-      title: '更新时间',
-      dataIndex: 'createdAt',
-      width: 180,
-      render: (value: string | null) => (
+      title: '切片数',
+      dataIndex: 'chunkCount',
+      width: 84,
+      align: 'right',
+      render: (count: number, row) =>
+        row.status === 'ready' ? (
+          <Text>{count}</Text>
+        ) : (
+          <Text type="secondary">—</Text>
+        ),
+    },
+    {
+      title: '大小',
+      dataIndex: 'sourceSize',
+      width: 92,
+      align: 'right',
+      render: (size: number) => (
         <Text type="secondary" style={{ fontSize: 12.5 }}>
-          {value ? new Date(value).toLocaleString() : '—'}
+          {formatBytes(size)}
         </Text>
       ),
     },
     {
+      title: '更新时间',
+      dataIndex: 'updatedAt',
+      width: 132,
+      render: (updatedAt: string | null, row) => {
+        const iso = updatedAt ?? row.createdAt;
+        return (
+          <Tooltip title={iso ? new Date(iso).toLocaleString() : '—'}>
+            <Text type="secondary" style={{ fontSize: 12.5 }}>
+              {formatRelative(iso)}
+            </Text>
+          </Tooltip>
+        );
+      },
+    },
+    {
       title: '操作',
-      width: 90,
+      width: 80,
       render: (_, row) => (
         <Popconfirm
           title={`确认下线文档 ${row.id}？`}
@@ -106,7 +156,7 @@ export default function DocumentTable({
 
   return (
     <Card
-      title="文档列表"
+      title="已录入文档"
       extra={
         <Space>
           <Select
@@ -126,7 +176,7 @@ export default function DocumentTable({
         dataSource={docs}
         loading={loading}
         pagination={false}
-        scroll={{ x: 720 }}
+        scroll={{ x: 760 }}
         locale={{ emptyText: token ? '暂无文档，先上传一份试试' : '请先在连接设置中获取访问令牌' }}
       />
     </Card>

@@ -43,10 +43,26 @@ type Document struct {
 	TenantID    uint64     `json:"tenantId"`
 	Title       string     `json:"title"`
 	SourceURL   *string    `json:"sourceUrl"`
+	SourceSize  int64      `json:"sourceSize"`
 	Status      string     `json:"status"`
+	ChunkCount  int        `json:"chunkCount"`
+	ErrorMsg    *string    `json:"errorMsg"`
 	Version     string     `json:"version"`
 	EffectiveAt *string    `json:"effectiveAt"`
 	CreatedAt   *time.Time `json:"createdAt"`
+	UpdatedAt   *time.Time `json:"updatedAt"`
+}
+
+// DocStats 知识库汇总：给管理台顶部概览用，避免前端按当前页聚合。
+type DocStats struct {
+	Total      int64 `json:"total"`
+	Pending    int64 `json:"pending"`
+	Processing int64 `json:"processing"`
+	Ready      int64 `json:"ready"`
+	Failed     int64 `json:"failed"`
+	Offline    int64 `json:"offline"`
+	Chunks     int64 `json:"chunks"`
+	Bytes      int64 `json:"bytes"`
 }
 
 func (s *Store) Ping(ctx context.Context) error {
@@ -115,11 +131,11 @@ type DocumentMeta struct {
 }
 
 // CreateDocument 落一条待处理文档，返回自增 docId。
-func (s *Store) CreateDocument(ctx context.Context, tenantID uint64, title, sourceURL, version string) (uint64, error) {
-	const q = `INSERT INTO documents (tenant_id, title, source_url, status, version)
-		VALUES (?, ?, ?, 'pending', ?)`
+func (s *Store) CreateDocument(ctx context.Context, tenantID uint64, title, sourceURL, version string, sourceSize int64) (uint64, error) {
+	const q = `INSERT INTO documents (tenant_id, title, source_url, source_size, status, version)
+		VALUES (?, ?, ?, ?, 'pending', ?)`
 
-	res, err := s.db.ExecContext(ctx, q, tenantID, title, sourceURL, version)
+	res, err := s.db.ExecContext(ctx, q, tenantID, title, sourceURL, sourceSize, version)
 	if err != nil {
 		return 0, fmt.Errorf("insert document: %w", err)
 	}
@@ -154,7 +170,8 @@ func (s *Store) SetDocumentStatus(ctx context.Context, tenantID, docID uint64, s
 }
 
 func (s *Store) ListDocuments(ctx context.Context, tenantID uint64, status string, limit, offset int) ([]Document, error) {
-	q := `SELECT id, tenant_id, title, source_url, status, version, effective_at, created_at
+	q := `SELECT id, tenant_id, title, source_url, source_size, status, chunk_count,
+			error_msg, version, effective_at, created_at, updated_at
 		FROM documents WHERE tenant_id = ?`
 	args := []any{tenantID}
 	if status != "" {
@@ -175,14 +192,22 @@ func (s *Store) ListDocuments(ctx context.Context, tenantID uint64, status strin
 		var (
 			d           Document
 			sourceURL   sql.NullString
+			errorMsg    sql.NullString
 			effectiveAt sql.NullTime
 			createdAt   sql.NullTime
+			updatedAt   sql.NullTime
 		)
-		if err := rows.Scan(&d.ID, &d.TenantID, &d.Title, &sourceURL, &d.Status, &d.Version, &effectiveAt, &createdAt); err != nil {
+		if err := rows.Scan(
+			&d.ID, &d.TenantID, &d.Title, &sourceURL, &d.SourceSize, &d.Status, &d.ChunkCount,
+			&errorMsg, &d.Version, &effectiveAt, &createdAt, &updatedAt,
+		); err != nil {
 			return nil, fmt.Errorf("scan document: %w", err)
 		}
 		if sourceURL.Valid {
 			d.SourceURL = &sourceURL.String
+		}
+		if errorMsg.Valid {
+			d.ErrorMsg = &errorMsg.String
 		}
 		if effectiveAt.Valid {
 			s := effectiveAt.Time.Format("2006-01-02")
@@ -192,9 +217,35 @@ func (s *Store) ListDocuments(ctx context.Context, tenantID uint64, status strin
 			t := createdAt.Time
 			d.CreatedAt = &t
 		}
+		if updatedAt.Valid {
+			t := updatedAt.Time
+			d.UpdatedAt = &t
+		}
 		docs = append(docs, d)
 	}
 	return docs, rows.Err()
+}
+
+// DocumentStats 汇总当前租户的文档与切片总量，供管理台顶部概览。
+func (s *Store) DocumentStats(ctx context.Context, tenantID uint64) (*DocStats, error) {
+	const q = `SELECT COUNT(*),
+			COALESCE(SUM(status = 'pending'), 0),
+			COALESCE(SUM(status = 'processing'), 0),
+			COALESCE(SUM(status = 'ready'), 0),
+			COALESCE(SUM(status = 'failed'), 0),
+			COALESCE(SUM(status = 'offline'), 0),
+			COALESCE(SUM(chunk_count), 0),
+			COALESCE(SUM(source_size), 0)
+		FROM documents WHERE tenant_id = ?`
+
+	var st DocStats
+	err := s.db.QueryRowContext(ctx, q, tenantID).Scan(
+		&st.Total, &st.Pending, &st.Processing, &st.Ready, &st.Failed, &st.Offline, &st.Chunks, &st.Bytes,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query document stats: %w", err)
+	}
+	return &st, nil
 }
 
 // MarshalCitations 将引用 ID 列表序列化为 messages.citations_json。

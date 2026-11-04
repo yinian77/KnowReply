@@ -79,8 +79,15 @@ func (m *MySQL) MarkProcessing(ctx context.Context, docID uint64) error {
 	return m.updateStatus(ctx, docID, "processing", nil)
 }
 
-func (m *MySQL) MarkReady(ctx context.Context, docID uint64) error {
-	return m.updateStatus(ctx, docID, "ready", nil)
+// MarkReady 标记入库完成，同时回写切片数，供管理台汇总展示。
+func (m *MySQL) MarkReady(ctx context.Context, docID uint64, chunkCount int) error {
+	const q = `UPDATE documents
+		SET status = 'ready', error_msg = NULL, chunk_count = ?, updated_at = CURRENT_TIMESTAMP(3)
+		WHERE id = ?`
+	if _, err := m.db.ExecContext(ctx, q, chunkCount, docID); err != nil {
+		return fmt.Errorf("mark ready: %w", err)
+	}
+	return nil
 }
 
 func (m *MySQL) MarkFailed(ctx context.Context, docID uint64, reason string) error {

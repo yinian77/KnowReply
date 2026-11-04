@@ -81,7 +81,8 @@ func (i *Ingester) ProcessTask(ctx context.Context, t *asynq.Task) error {
 		return err
 	}
 
-	if err := i.run(ctx, log, doc); err != nil {
+	chunkCount, err := i.run(ctx, log, doc)
+	if err != nil {
 		log.Error("ingest failed", "err", err)
 		if mErr := i.docs.MarkFailed(context.WithoutCancel(ctx), doc.ID, err.Error()); mErr != nil {
 			log.Error("mark failed status error", "err", mErr)
@@ -89,30 +90,31 @@ func (i *Ingester) ProcessTask(ctx context.Context, t *asynq.Task) error {
 		return err
 	}
 
-	if err := i.docs.MarkReady(ctx, doc.ID); err != nil {
+	if err := i.docs.MarkReady(ctx, doc.ID, chunkCount); err != nil {
 		return err
 	}
 	log.Info("ingest finished")
 	return nil
 }
 
-func (i *Ingester) run(ctx context.Context, log *slog.Logger, doc *store.Document) error {
+// run 执行解析→切分→向量化→写库，返回写入的切片数。
+func (i *Ingester) run(ctx context.Context, log *slog.Logger, doc *store.Document) (int, error) {
 	path, cleanup, err := i.resolveSource(ctx, doc)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer cleanup()
 
 	parsed, err := parser.Parse(path)
 	if err != nil {
-		return fmt.Errorf("%w: %s", asynq.SkipRetry, err)
+		return 0, fmt.Errorf("%w: %s", asynq.SkipRetry, err)
 	}
 	log.Info("parsed document",
 		"ext", parsed.Ext, "runes", len([]rune(parsed.Text)), "markdown", parsed.Markdown)
 
 	chunks := i.split.Split(parsed.Text, parsed.Markdown)
 	if len(chunks) == 0 {
-		return fmt.Errorf("%w: no chunks produced", asynq.SkipRetry)
+		return 0, fmt.Errorf("%w: no chunks produced", asynq.SkipRetry)
 	}
 	if len(chunks) > maxChunkCount {
 		chunks = chunks[:maxChunkCount]
@@ -126,10 +128,10 @@ func (i *Ingester) run(ctx context.Context, log *slog.Logger, doc *store.Documen
 
 	vectors, err := i.emb.Embed(ctx, texts)
 	if err != nil {
-		return fmt.Errorf("embed chunks: %w", err)
+		return 0, fmt.Errorf("embed chunks: %w", err)
 	}
 	if len(vectors) != len(chunks) {
-		return fmt.Errorf("embedding count mismatch: chunks=%d vectors=%d", len(chunks), len(vectors))
+		return 0, fmt.Errorf("embedding count mismatch: chunks=%d vectors=%d", len(chunks), len(vectors))
 	}
 
 	var effectiveAt *time.Time
@@ -152,10 +154,10 @@ func (i *Ingester) run(ctx context.Context, log *slog.Logger, doc *store.Documen
 
 	written, err := i.kb.ReplaceChunks(ctx, doc.TenantID, doc.ID, rows)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	log.Info("chunks written", "count", written, "dim", i.emb.Dim(), "embedder", i.emb.Describe())
-	return nil
+	return written, nil
 }
 
 // resolveSource 支持本地路径、file:// 与 http(s):// 三种来源。

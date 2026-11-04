@@ -128,6 +128,7 @@ func buildRouter(cfg *config.Config, h *handler.Handler) http.Handler {
 	authed := v1.Group("", h.RequireAuth())
 	authed.POST("/chat/sessions", h.CreateSession)
 	authed.GET("/kb/documents", h.ListDocuments)
+	authed.GET("/kb/documents/stats", h.DocumentStats)
 	authed.POST("/kb/documents", h.UploadDocument)
 	authed.DELETE("/kb/documents/:id", h.DeleteDocument)
 

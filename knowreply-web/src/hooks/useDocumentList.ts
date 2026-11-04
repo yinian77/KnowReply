@@ -2,36 +2,44 @@ import { useCallback, useEffect, useState } from 'react';
 import { App as AntdApp } from 'antd';
 import { POLL_INTERVAL_MS } from '../config';
 import { useAuth } from '../context/AuthContext';
-import { listDocuments } from '../services/knowledgeApi';
+import { getDocumentStats, listDocuments } from '../services/knowledgeApi';
 import { isUnauthorized, toErrorMessage } from '../services/http';
-import type { DocItem } from '../types';
+import type { DocItem, DocStats } from '../types';
 
 interface DocumentListState {
   docs: DocItem[];
+  stats: DocStats | null;
   loading: boolean;
   reload: () => void;
 }
 
 /**
- * 文档列表数据源：按状态筛选，存在 pending/processing 时自动轮询，落定即停。
+ * 文档列表 + 汇总数据源。
+ * 列表与统计并发拉取；存在 pending/processing 时自动轮询，落定即停。
  */
 export function useDocumentList(statusFilter: string): DocumentListState {
   const { settings, token, clearToken } = useAuth();
   const { message } = AntdApp.useApp();
 
   const [docs, setDocs] = useState<DocItem[]>([]);
+  const [stats, setStats] = useState<DocStats | null>(null);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(
     async (silent: boolean) => {
       if (!token) {
         setDocs([]);
+        setStats(null);
         return;
       }
       if (!silent) setLoading(true);
       try {
-        const res = await listDocuments(settings, token, statusFilter);
-        setDocs(res.items);
+        const [list, stat] = await Promise.all([
+          listDocuments(settings, token, statusFilter),
+          getDocumentStats(settings, token),
+        ]);
+        setDocs(list.items);
+        setStats(stat);
       } catch (err) {
         if (isUnauthorized(err)) {
           clearToken();
@@ -62,5 +70,5 @@ export function useDocumentList(statusFilter: string): DocumentListState {
     void load(false);
   }, [load]);
 
-  return { docs, loading, reload };
+  return { docs, stats, loading, reload };
 }
