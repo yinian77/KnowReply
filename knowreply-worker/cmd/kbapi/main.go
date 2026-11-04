@@ -30,7 +30,7 @@ func main() {
 
 	addr := os.Getenv("KB_API_ADDR")
 	if addr == "" {
-		addr = "127.0.0.1:8081"
+		addr = "127.0.0.1:6702"
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

@@ -249,7 +249,7 @@ CREATE INDEX ON kb_chunks (tenant_id, category);
 | 服务 | 镜像 / 版本 | 端口 | 资源建议 |
 | --- | --- | --- | --- |
 | nginx | `nginx:stable` | 80 / 443 | 0.5C / 256M |
-| go-gateway | 自构建（Go 1.22+） | 8080（内） | 1C / 512M |
+| go-gateway | 自构建（Go 1.22+） | 6701（内） | 1C / 512M |
 | node-agent | 自构建（Node 22 LTS） | 3000（内） | 1C / 1G |
 | go-worker | 自构建 | — | 1C / 1G |
 | mysql | `mysql:8.0` | 3306 | 1C / 1G |

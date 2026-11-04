@@ -64,7 +64,7 @@ type Queue struct {
 func Load() (*Config, error) {
 	cfg := &Config{
 		Env:      getEnv("APP_ENV", "dev"),
-		HTTPAddr: getEnv("HTTP_ADDR", ":8080"),
+		HTTPAddr: getEnv("HTTP_ADDR", ":6701"),
 		MySQL: MySQL{
 			DSN:             buildDSN(),
 			MaxOpenConns:    getEnvInt("MYSQL_MAX_OPEN_CONNS", 20),

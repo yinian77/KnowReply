@@ -6,8 +6,8 @@ export const STORAGE_KEYS = {
 } as const;
 
 export const DEFAULT_SETTINGS: Settings = {
-  apiBase: 'http://127.0.0.1:8080',
-  kbBase: 'http://127.0.0.1:8081',
+  apiBase: 'http://127.0.0.1:6701',
+  kbBase: 'http://127.0.0.1:6702',
   tenantId: 1,
   userId: 'admin',
 };

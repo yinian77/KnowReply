@@ -45,7 +45,7 @@ export default function SettingsModal({ open, onClose }: Props) {
           label="网关地址"
           rules={[{ required: true, message: '请输入网关地址' }]}
         >
-          <Input placeholder="http://127.0.0.1:8080" spellCheck={false} />
+          <Input placeholder="http://127.0.0.1:6701" spellCheck={false} />
         </Form.Item>
 
         <Form.Item
@@ -53,7 +53,7 @@ export default function SettingsModal({ open, onClose }: Props) {
           label="检索服务地址"
           rules={[{ required: true, message: '请输入检索服务地址' }]}
         >
-          <Input placeholder="http://127.0.0.1:8081" spellCheck={false} />
+          <Input placeholder="http://127.0.0.1:6702" spellCheck={false} />
         </Form.Item>
 
         <Form.Item

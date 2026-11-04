@@ -21,7 +21,6 @@ REPO_DIR="$(cd "$SERVICE_DIR/.." && pwd)"
 BIN="$SERVICE_DIR/bin/gateway"
 PID_FILE="$SERVICE_DIR/run/gateway.pid"
 LOG_FILE="$SERVICE_DIR/logs/gateway.log"
-HEALTH_URL="http://127.0.0.1:8080/readyz"
 
 # ---------- 环境变量 ----------
 load_env() {
@@ -33,7 +32,7 @@ load_env() {
   fi
 
   : "${APP_ENV:=dev}"
-  : "${HTTP_ADDR:=:8080}"
+  : "${HTTP_ADDR:=:6701}"
 
   : "${MYSQL_HOST:=127.0.0.1}"
   : "${MYSQL_PORT:=13406}"
@@ -127,8 +126,9 @@ do_stop() {
 do_status() {
   load_env
   if is_running; then
-    local health="fail"
-    if command -v curl >/dev/null 2>&1 && curl -fsS -m 2 "$HEALTH_URL" >/dev/null 2>&1; then
+    local health="fail" port="${HTTP_ADDR##*:}"
+    if command -v curl >/dev/null 2>&1 &&
+      curl -fsS -m 2 "http://127.0.0.1:${port}/readyz" >/dev/null 2>&1; then
       health="ok"
     fi
     printf '  gateway  running  pid=%s  addr=%s  health=%s\n' "$(cat "$PID_FILE")" "$HTTP_ADDR" "$health"

@@ -4,7 +4,7 @@
 #
 # 本模块有两个可运行进程：
 #   worker —— asynq 消费者，文档入库/下线流水线
-#   kbapi  —— 检索预览 HTTP 服务（内部工具，默认只监听 127.0.0.1:8081）
+#   kbapi  —— 检索预览 HTTP 服务（内部工具，默认只监听 127.0.0.1:6702）
 #
 #   ./service.sh start [worker|kbapi|all]   默认 all
 #   ./service.sh stop  [worker|kbapi|all]   默认 all
@@ -56,7 +56,7 @@ load_env() {
   : "${WORKER_CONCURRENCY:=4}"
   : "${DOC_STORAGE_ROOT:=$REPO_DIR/data/docs}"
 
-  : "${KB_API_ADDR:=127.0.0.1:8081}"
+  : "${KB_API_ADDR:=127.0.0.1:6702}"
 
   export REDIS_ADDR REDIS_PASSWORD REDIS_DB_QUEUE \
     MYSQL_HOST MYSQL_PORT MYSQL_USER MYSQL_PASSWORD MYSQL_DATABASE \
@@ -77,7 +77,7 @@ target_pkg() {
 target_health() {
   case "$1" in
     worker) echo "" ;;
-    kbapi) echo "http://127.0.0.1:8081/healthz" ;;
+    kbapi) echo "http://${KB_API_ADDR}/healthz" ;;
   esac
 }
 
