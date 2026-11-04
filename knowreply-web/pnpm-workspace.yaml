@@ -1,0 +1,4 @@
+# pnpm 11 起，构建脚本白名单等设置从 package.json 的 pnpm 字段迁到这里
+# esbuild 需要执行 postinstall 才能落地平台二进制，Vite 依赖它
+onlyBuiltDependencies:
+  - esbuild

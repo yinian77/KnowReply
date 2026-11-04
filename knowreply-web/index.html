@@ -1,114 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>KnowReply 管理台</title>
-  <link rel="stylesheet" href="./styles.css" />
-</head>
-<body>
-  <header class="topbar">
-    <div class="brand">
-      <span class="dot"></span>
-      <span>KnowReply 管理台</span>
-    </div>
-    <div class="topbar-right">
-      <span id="tokenState" class="pill pill-off">未登录</span>
-      <button id="btnSettings" class="ghost">连接设置</button>
-    </div>
-  </header>
-
-  <main>
-    <section id="settingsPanel" class="panel hidden">
-      <h2>连接设置</h2>
-      <div class="grid">
-        <label>网关地址
-          <input id="apiBase" value="http://127.0.0.1:8080" spellcheck="false" />
-        </label>
-        <label>检索服务地址
-          <input id="kbBase" value="http://127.0.0.1:8081" spellcheck="false" />
-        </label>
-        <label>租户 ID
-          <input id="tenantId" type="number" min="1" value="1" />
-        </label>
-        <label>用户标识
-          <input id="userId" value="admin" spellcheck="false" />
-        </label>
-      </div>
-      <div class="actions">
-        <button id="btnToken" class="primary">获取访问令牌</button>
-        <button id="btnClearToken" class="ghost">清除令牌</button>
-      </div>
-      <p class="hint">令牌 24 小时有效，只保存在浏览器 localStorage，不会上传到任何第三方。</p>
-    </section>
-
-    <nav class="tabs">
-      <button class="tab active" data-tab="kb">知识库</button>
-      <button class="tab" data-tab="search">检索测试</button>
-    </nav>
-
-    <section id="tab-kb" class="tab-panel">
-      <div class="panel">
-        <h2>上传文档</h2>
-        <div class="upload-row">
-          <input type="file" id="fileInput" accept=".md,.markdown,.txt,.docx,.pdf" />
-          <input type="text" id="docTitle" placeholder="标题（留空则取文件名）" />
-          <button id="btnUpload" class="primary">上传并入库</button>
-        </div>
-        <p class="hint">支持 MD / TXT / DOCX / PDF，单文件 ≤ 50MB。上传后进入队列，由 worker 异步解析、切分并写入向量库。</p>
-        <div id="uploadMsg" class="msg"></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-head">
-          <h2>文档列表</h2>
-          <div class="row">
-            <select id="statusFilter">
-              <option value="">全部状态</option>
-              <option value="pending">pending</option>
-              <option value="processing">processing</option>
-              <option value="ready">ready</option>
-              <option value="failed">failed</option>
-              <option value="offline">offline</option>
-            </select>
-            <button id="btnRefresh" class="ghost">刷新</button>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th style="width:64px">ID</th>
-                <th>标题</th>
-                <th style="width:110px">状态</th>
-                <th style="width:170px">更新时间</th>
-                <th style="width:90px">操作</th>
-              </tr>
-            </thead>
-            <tbody id="docRows">
-              <tr><td colspan="5" class="empty">尚未加载</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div id="listMsg" class="msg"></div>
-      </div>
-    </section>
-
-    <section id="tab-search" class="tab-panel hidden">
-      <div class="panel">
-        <h2>检索测试</h2>
-        <div class="search-row">
-          <input id="queryInput" placeholder="输入真实用户问法，例如：退款几天到账" />
-          <label class="inline">条数 <input id="topK" type="number" min="1" max="20" value="5" /></label>
-          <button id="btnSearch" class="primary">检索</button>
-        </div>
-        <p class="hint">三路召回：向量 + 全文 + 中文二元组，RRF 融合。用于判断问题出在切分还是模型。</p>
-        <div id="searchMeta" class="meta"></div>
-        <div id="hits" class="hits"></div>
-      </div>
-    </section>
-  </main>
-
-  <script src="./app.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="KnowReply 智能客服知识库管理台" />
+    <title>KnowReply 管理台</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
