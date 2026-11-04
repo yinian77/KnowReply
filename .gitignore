@@ -35,6 +35,7 @@ logs/
 *.log
 tmp/
 data/
+run/
 *.pid
 *.seed
 
