@@ -63,13 +63,15 @@ export default function RetrievalPage() {
           onPressEnter={handleSearch}
           allowClear
         />
+        {/* antd 5.24 起 InputNumber 的 addonBefore 已废弃，改用 placeholder 提示（外层已是 Space.Compact） */}
         <InputNumber
           min={1}
           max={20}
           value={limit}
           onChange={(v) => setLimit(Number(v) || 5)}
-          style={{ width: 108 }}
-          addonBefore="条数"
+          placeholder="条数"
+          aria-label="返回条数"
+          style={{ width: 96 }}
         />
         <Button type="primary" loading={loading} onClick={handleSearch}>
           检索
