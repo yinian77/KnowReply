@@ -1,0 +1,54 @@
+# ---------- 环境变量：忽略真实配置，保留示例 ----------
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# ---------- Go ----------
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+go.work
+go.work.sum
+
+# ---------- Node ----------
+node_modules/
+dist/
+build/
+.next/
+.nuxt/
+.cache/
+coverage/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# ---------- 运行期产物 ----------
+logs/
+*.log
+tmp/
+data/
+*.pid
+*.seed
+
+# ---------- 编辑器 / IDE ----------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ---------- 操作系统 ----------
+.DS_Store
+Thumbs.db
+
+# ---------- 本地数据库快照 / 备份 ----------
+*.sql.gz
+*.dump
